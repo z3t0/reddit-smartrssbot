@@ -1,5 +1,4 @@
 import praw
-import pdb
 import feedparser
 import time
 
@@ -27,6 +26,7 @@ def getSubscriptions():
 
 
 def newSubscriptions():
+    global updated
     for message in reddit.inbox.unread():
         parsed=message.body.split('\n')
 
@@ -53,16 +53,17 @@ def newSubscriptions():
 
 
 def updatePosts():
+    global updated
     for subscription in subscriptions:
         subreddit = reddit.subreddit(subscription[0])
         feed = feedparser.parse(subscription[1])
-        subscription[3] = []
 
         for entry in feed.entries:
             try:
                 subreddit.submit(url=entry.link, title=entry.title, resubmit=False)
             except:
                 print("Failed to submit: sub="+subscription[0] +" rss=" + subscription[1] + " link=" +entry.link)
+    updated = False
 
 getSubscriptions()
 
@@ -71,8 +72,8 @@ timer = 0
 while(True):
     newSubscriptions()
 
-    # Only update feeds once an hour, or if a new feed is added
-    if timer == 360 or updated:
+    # Only update feeds once a day, or if a new feed is added
+    if timer == (60 * 60 * 24) or updated:
         updatePosts()
         updated = False
         timer = 0
