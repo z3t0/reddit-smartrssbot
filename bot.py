@@ -1,11 +1,14 @@
 import praw
 import feedparser
 import time
+from time import mktime
+from datetime import datetime
 
 reddit = praw.Reddit('rssbot', user_agent='rpi by /u/z3t0')
 
 subscriptions = []
-updated = False
+updated = True
+last_checked = None
 
 def getSubscriptions():
     for message in reddit.inbox.messages():
@@ -54,16 +57,33 @@ def newSubscriptions():
 
 def updatePosts():
     global updated
+    global last_checked
     for subscription in subscriptions:
         subreddit = reddit.subreddit(subscription[0])
         feed = feedparser.parse(subscription[1])
 
         for entry in feed.entries:
-            try:
-                subreddit.submit(url=entry.link, title=entry.title, resubmit=False)
-            except:
-                print("Failed to submit: sub="+subscription[0] +" rss=" + subscription[1] + " link=" +entry.link)
+
+            post = False
+
+            if last_checked is None:
+                post = True
+
+            else:
+                pub = datetime.fromtimestamp(mktime(entry.published_parsed))
+
+                if pub > last_checked:
+                    post = True
+
+            if post == True:
+                try:
+                    subreddit.submit(url=entry.link, title=entry.title, resubmit=False)
+                except praw.exceptions.APIException as E:
+                    print("Failed to submit: sub="+subscription[0] +" rss=" + subscription[1] + " link=" +entry.link)
+                    print(E.message)
     updated = False
+
+    last_checked = datetime.now()
 
 getSubscriptions()
 
